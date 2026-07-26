@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#17233a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Spartan Tracker">
+  <meta name="description" content="Osobní tréninkový a progresový deník pro přípravu na Spartan Race.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <title>Spartan Tracker</title>
+  <style>
+    :root{
+      --bg:#f4f6f9;--surface:#ffffff;--surface-2:#f8fafc;--text:#17233a;
+      --muted:#718096;--line:#e2e8f0;--accent:#ef5b4c;--accent-soft:#fff1ef;
+      --green:#1f9d72;--green-soft:#eaf8f3;--amber:#d98d1d;--shadow:0 12px 35px rgba(23,35,58,.08);
+      --radius:18px;--sidebar:238px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;line-height:1.45}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    a{color:inherit}
+    .app{min-height:100vh}
+    .sidebar{
+      position:fixed;inset:0 auto 0 0;width:var(--sidebar);background:#17233a;color:#fff;
+      padding:24px 18px;display:flex;flex-direction:column;z-index:30
+    }
+    .brand{display:flex;align-items:center;gap:12px;padding:4px 8px 22px}
+    .brand-mark{width:42px;height:42px;border-radius:13px;background:var(--accent);display:grid;place-items:center;font-weight:900;font-size:20px;box-shadow:0 8px 20px rgba(239,91,76,.3)}
+    .brand strong{display:block;font-size:17px}.brand small{opacity:.65}
+    .nav{display:grid;gap:6px}
+    .nav button{
+      border:0;background:transparent;color:rgba(255,255,255,.72);text-align:left;padding:12px 14px;
+      border-radius:12px;display:flex;gap:11px;align-items:center;font-weight:650
+    }
+    .nav button.active,.nav button:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nav .icon{width:22px;text-align:center}
+    .side-bottom{margin-top:auto;padding:14px 8px;color:rgba(255,255,255,.65);font-size:12px}
+    .content{margin-left:var(--sidebar);min-height:100vh}
+    .topbar{
+      position:sticky;top:0;z-index:20;background:rgba(244,246,249,.9);backdrop-filter:blur(16px);
+      display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid rgba(226,232,240,.8)
+    }
+    .topbar h1{font-size:22px;margin:0}.topbar .sub{font-size:13px;color:var(--muted)}
+    .top-actions{display:flex;gap:10px}
+    .main{padding:26px 28px 100px;max-width:1480px;margin:0 auto}
+    .page{display:none}.page.active{display:block}
+    .hero{
+      background:linear-gradient(135deg,#17233a 0%,#23365a 68%,#304878 100%);color:#fff;border-radius:24px;
+      padding:28px;box-shadow:var(--shadow);display:grid;grid-template-columns:1.5fr .8fr;gap:24px;overflow:hidden;position:relative
+    }
+    .hero:after{content:"";position:absolute;width:270px;height:270px;border:45px solid rgba(255,255,255,.05);border-radius:50%;right:-80px;top:-80px}
+    .hero h2{font-size:30px;margin:0 0 8px;max-width:650px}.hero p{margin:0;color:rgba(255,255,255,.75);max-width:700px}
+    .hero-progress{align-self:center;position:relative;z-index:1}
+    .progress-label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;color:rgba(255,255,255,.8)}
+    .progress{height:12px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden}
+    .progress > span{display:block;height:100%;background:var(--accent);border-radius:99px;width:0;transition:.4s}
+    .grid{display:grid;gap:18px}.grid.cards{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:18px}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 5px 18px rgba(23,35,58,.045)}
+    .metric{padding:18px}
+    .metric .label{font-size:13px;color:var(--muted);font-weight:650}.metric .value{font-size:28px;font-weight:800;margin:5px 0}.metric .hint{font-size:12px;color:var(--muted)}
+    .section-grid{display:grid;grid-template-columns:1.35fr .85fr;gap:18px;margin-top:18px}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0}
+    .card-head h3{font-size:17px;margin:0}.card-head p{font-size:12px;color:var(--muted);margin:3px 0 0}
+    .card-body{padding:18px 20px 20px}
+    .btn{border:1px solid var(--line);background:#fff;color:var(--text);border-radius:11px;padding:10px 14px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+    .btn:hover{border-color:#cbd5e0;background:#fafafa}.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .btn.dark{background:#17233a;border-color:#17233a;color:#fff}.btn.ghost{background:transparent}.btn.danger{color:#b83232;border-color:#fed7d7;background:#fff5f5}
+    .btn.small{padding:7px 10px;font-size:12px;border-radius:9px}
+    .upcoming{display:grid;gap:10px}
+    .session-row{display:grid;grid-template-columns:45px 1fr auto;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:13px;background:var(--surface-2)}
+    .session-date{width:42px;height:42px;border-radius:11px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;text-align:center;font-size:11px;color:var(--muted);line-height:1.15}
+    .session-date strong{display:block;font-size:16px;color:var(--text)}
+    .session-info strong{display:block}.session-info small{color:var(--muted)}
+    .tag{display:inline-flex;padding:5px 8px;border-radius:999px;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:750}
+    .tag.strength{background:#eef2ff;color:#4c51bf}.tag.cardio{background:#e6fffa;color:#147d64}.tag.terrain{background:#fff7e6;color:#a45c00}.tag.recovery{background:#f7fafc;color:#718096}
+    .empty{padding:25px;text-align:center;color:var(--muted)}
+    canvas{width:100%;height:260px;display:block}
+    .page-title{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px;gap:12px}
+    .page-title h2{font-size:27px;margin:0}.page-title p{color:var(--muted);margin:4px 0 0}
+    .week{margin-bottom:14px;overflow:hidden}
+    .week-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;background:#fff;border-bottom:1px solid var(--line)}
+    .week-head h3{margin:0;font-size:16px}.week-head small{color:var(--muted)}
+    .week-sessions{padding:8px}
+    .plan-row{display:grid;grid-template-columns:42px 82px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px;border-radius:12px}
+    .plan-row:hover{background:var(--surface-2)}
+    .check{
+      appearance:none;width:24px;height:24px;border:2px solid #cbd5e0;border-radius:7px;background:#fff;display:grid;place-items:center
+    }
+    .check:checked{background:var(--green);border-color:var(--green)}
+    .check:checked:after{content:"✓";color:#fff;font-weight:900;font-size:15px}
+    .plan-day{font-size:12px;color:var(--muted);font-weight:700}.plan-day strong{font-size:15px;color:var(--text);display:block}
+    .plan-main strong{display:block}.plan-main small{color:var(--muted)}
+    .done .plan-main{text-decoration:line-through;color:var(--muted)}
+    .done .plan-main small{color:#a0aec0}
+    .form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+    .field{display:grid;gap:6px}.field.span-2{grid-column:span 2}.field.span-4{grid-column:1/-1}
+    label{font-size:12px;font-weight:750;color:#4a5568}
+    input,select,textarea{width:100%;border:1px solid var(--line);background:#fff;color:var(--text);border-radius:11px;padding:11px 12px;outline:none}
+    input:focus,select:focus,textarea:focus{border-color:#7f9cf5;box-shadow:0 0 0 3px rgba(127,156,245,.15)}
+    textarea{min-height:92px;resize:vertical}
+    .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+    th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+    tr:last-child td{border-bottom:0}
+    .charts{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .exercise-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+    .exercise{padding:17px;display:flex;flex-direction:column;min-height:220px}
+    .exercise h3{font-size:16px;margin:8px 0 6px}.exercise p{font-size:13px;color:var(--muted);margin:0 0 12px}
+    .exercise ul{padding-left:18px;margin:0 0 16px;font-size:13px;color:#4a5568}
+    .exercise .btn{margin-top:auto}
+    .ex-number{width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:900}
+    .tabs{display:flex;gap:8px;margin-bottom:15px;overflow:auto}
+    .tabs button{border:1px solid var(--line);background:#fff;padding:9px 13px;border-radius:999px;font-weight:700;white-space:nowrap}
+    .tabs button.active{background:#17233a;color:#fff;border-color:#17233a}
+    .notice{background:#fffaf0;border:1px solid #feebc8;color:#7b4b00;border-radius:13px;padding:13px 15px;font-size:13px}
+    .data-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .data-action{padding:20px}.data-action h3{margin:0 0 5px}.data-action p{color:var(--muted);font-size:13px;min-height:38px}
+    .profile-preview{display:flex;gap:14px;align-items:center;padding:18px;background:var(--surface-2);border-radius:14px}
+    .avatar{width:52px;height:52px;border-radius:16px;background:#17233a;color:#fff;display:grid;place-items:center;font-size:22px;font-weight:900}
+    .modal{position:fixed;inset:0;background:rgba(23,35,58,.48);display:none;align-items:center;justify-content:center;padding:20px;z-index:100}
+    .modal.open{display:flex}.modal-card{width:min(560px,100%);background:#fff;border-radius:20px;box-shadow:0 25px 80px rgba(0,0,0,.25);max-height:90vh;overflow:auto}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}
+    .modal-head h3{margin:0}.modal-body{padding:20px}
+    .close{border:0;background:#edf2f7;width:34px;height:34px;border-radius:10px;font-size:18px}
+    .toast{position:fixed;right:22px;bottom:24px;background:#17233a;color:#fff;padding:12px 16px;border-radius:12px;box-shadow:var(--shadow);z-index:200;opacity:0;transform:translateY(15px);pointer-events:none;transition:.25s}
+    .toast.show{opacity:1;transform:translateY(0)}
+    .mobile-nav{display:none}
+    .install-help{display:none}
+    @media(max-width:1100px){
+      .grid.cards{grid-template-columns:repeat(2,1fr)}
+      .exercise-grid{grid-template-columns:repeat(2,1fr)}
+      .form-grid{grid-template-columns:repeat(2,1fr)}.field.span-4{grid-column:1/-1}
+    }
+    @media(max-width:820px){
+      .sidebar{display:none}.content{margin-left:0}.topbar{padding:14px 16px}.main{padding:18px 14px 96px}
+      .hero{grid-template-columns:1fr;padding:22px}.hero h2{font-size:25px}
+      .section-grid,.charts,.data-grid{grid-template-columns:1fr}
+      .exercise-grid{grid-template-columns:1fr}
+      .mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(5,1fr);bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(16px);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+      .mobile-nav button{border:0;background:transparent;padding:10px 4px 8px;color:var(--muted);font-size:10px;font-weight:750}
+      .mobile-nav button span{display:block;font-size:19px;margin-bottom:2px}.mobile-nav button.active{color:var(--accent)}
+      .plan-row{grid-template-columns:32px 62px 1fr}.plan-row .btn{grid-column:3;justify-self:start}.top-actions .hide-mobile{display:none}
+    }
+    @media(max-width:560px){
+      .grid.cards{grid-template-columns:1fr 1fr;gap:10px}.metric{padding:14px}.metric .value{font-size:22px}
+      .page-title{align-items:start;flex-direction:column}.form-grid{grid-template-columns:1fr}.field.span-2,.field.span-4{grid-column:auto}
+      .hero{border-radius:18px}.card{border-radius:15px}.card-body{padding:15px}.card-head{padding:15px 15px 0}
+      .week-head{padding:14px}.week-sessions{padding:4px}.plan-row{padding:10px 7px;gap:8px}
+      .topbar h1{font-size:18px}.topbar .sub{display:none}
+    }
+    @media print{
+      .sidebar,.topbar,.mobile-nav,.btn,.tabs,.form-actions{display:none!important}
+      .content{margin:0}.main{padding:0}.page{display:none!important}.page.active{display:block!important}
+      body{background:#fff}.card,.hero{box-shadow:none;break-inside:avoid}
+    }
+  
+    .sync-box{margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:13px;background:rgba(255,255,255,.055)}
+    .sync-line{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:750}
+    .sync-dot{width:9px;height:9px;border-radius:50%;background:#a0aec0;box-shadow:0 0 0 4px rgba(160,174,192,.12)}
+    .sync-dot.online{background:#48bb78;box-shadow:0 0 0 4px rgba(72,187,120,.15)}
+    .sync-dot.busy{background:#ecc94b;box-shadow:0 0 0 4px rgba(236,201,75,.15)}
+    .sync-dot.error{background:#fc8181;box-shadow:0 0 0 4px rgba(252,129,129,.15)}
+    .sync-email{font-size:11px;color:rgba(255,255,255,.62);margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .auth-panel{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:16px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px}
+    .auth-panel strong{display:block}.auth-panel small{color:var(--muted)}
+    .auth-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .optional-badge{display:inline-flex;padding:4px 7px;border-radius:999px;background:#f7fafc;color:#718096;font-size:10px;font-weight:800;border:1px dashed #cbd5e0}
+    .workout-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px}
+    .mini-stat{font-size:11px;padding:4px 7px;border-radius:8px;background:#edf2f7;color:#4a5568}
+    .connection-note{font-size:12px;color:var(--muted);margin-top:8px}
+    @media(max-width:560px){.auth-panel{grid-template-columns:1fr}.auth-actions{justify-content:flex-start}}
+
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">S</div><div><strong>Spartan Tracker</strong><small>Liberec 2027</small></div></div>
+    <nav class="nav" id="desktopNav">
+      <button data-page="dashboard" class="active"><span class="icon">⌂</span>Přehled</button>
+      <button data-page="plan"><span class="icon">✓</span>Tréninkový plán</button>
+      <button data-page="measurements"><span class="icon">↗</span>Měření a grafy</button>
+      <button data-page="exercises"><span class="icon">▶</span>Cviky a videa</button>
+      <button data-page="data"><span class="icon">⚙</span>Data a nastavení</button>
+    </nav>
+    <div class="sync-box">
+      <div class="sync-line"><span class="sync-dot" id="syncDot"></span><span id="syncText">Lokální režim</span></div>
+      <div class="sync-email" id="syncEmail">Firebase zatím není připojen</div>
+      <button class="btn small" id="sidebarAuthBtn" style="width:100%;margin-top:10px;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.15);color:#fff">Přihlásit</button>
+    </div>
+    <div class="side-bottom">Data zůstávají v tomto prohlížeči. Pravidelně používej export zálohy.</div>
+  </aside>
+
+  <div class="content">
+    <header class="topbar">
+      <div><h1 id="topTitle">Přehled</h1><div class="sub" id="todayLabel"></div></div>
+      <div class="top-actions">
+        <button class="btn small hide-mobile" id="authTopBtn">☁ Přihlásit</button>
+        <button class="btn small hide-mobile" id="printBtn">🖨 Tisk</button>
+        <button class="btn small primary" id="quickLogBtn">＋ Zapsat trénink</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="page active" id="page-dashboard">
+        <div class="hero">
+          <div>
+            <div class="tag" style="background:rgba(255,255,255,.12);color:#fff;margin-bottom:12px">PŘÍPRAVA OD 26. 7. 2026</div>
+            <h2 id="heroGreeting">Začíná cesta k závodu.</h2>
+            <p>Nejdůležitější metrika není dokonalý výkon, ale počet týdnů, ve kterých udržíš návyk.</p>
+          </div>
+          <div class="hero-progress">
+            <div class="progress-label"><span>Splněné plánované jednotky</span><strong id="heroPercent">0 %</strong></div>
+            <div class="progress"><span id="heroBar"></span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:12px;color:rgba(255,255,255,.7)">
+              <span id="daysTraining">Den 0</span><span id="raceCountdown">— dní do Lipna</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid cards">
+          <div class="card metric"><div class="label">Tento týden</div><div class="value" id="weekDone">0 / 0</div><div class="hint">splněné / povinné</div></div>
+          <div class="card metric"><div class="label">Celkem pohybu</div><div class="value" id="totalMinutes">0 min</div><div class="hint">zapsané tréninky</div></div>
+          <div class="card metric"><div class="label">Běh a chůze</div><div class="value" id="runMetric">0 km</div><div class="hint">zapsaná vzdálenost</div></div>
+          <div class="card metric"><div class="label">Plavání</div><div class="value" id="swimMetric">0 m</div><div class="hint">zapsaná vzdálenost</div></div>
+          <div class="card metric"><div class="label">Hmotnost</div><div class="value" id="weightMetric">—</div><div class="hint" id="weightHint">zatím bez měření</div></div>
+          <div class="card metric"><div class="label">Průměrný spánek</div><div class="value" id="sleepMetric">—</div><div class="hint">poslední záznamy</div></div>
+        </div>
+
+        <div class="section-grid">
+          <div class="card">
+            <div class="card-head"><div><h3>Nejbližší tréninky</h3><p>Plán se automaticky posouvá podle data.</p></div><button class="btn small" data-go="plan">Celý plán</button></div>
+            <div class="card-body"><div class="upcoming" id="upcomingList"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Progres hmotnosti</h3><p>Posledních 12 měření.</p></div><button class="btn small" data-go="measurements">Měření</button></div>
+            <div class="card-body"><canvas id="weightMiniChart" height="260"></canvas></div>
+          </div>
+        </div>
+
+        <div class="section-grid">
+          <div class="card">
+            <div class="card-head"><div><h3>Týdenní konzistence</h3><p>Cíl: alespoň 3 splněné jednotky týdně.</p></div></div>
+            <div class="card-body"><canvas id="weeklyChart" height="260"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Další kontrolní měření</h3><p>Ráno po WC, za podobných podmínek.</p></div></div>
+            <div class="card-body">
+              <div class="profile-preview">
+                <div class="avatar">↗</div>
+                <div><strong id="nextMeasureDate">—</strong><div style="color:var(--muted);font-size:13px">váha, pas, klidová TF, spánek, vis a kliky</div></div>
+              </div>
+              <button class="btn primary" style="width:100%;margin-top:14px" data-go="measurements">Zapsat měření</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-plan">
+        <div class="page-title"><div><h2>Tréninkový plán</h2><p>Startovní blok do Lipno Sprintu 2026 včetně běhu, volitelného plavání, kettlebellů a odporových gum.</p></div><button class="btn" id="expandAllBtn">Rozbalit vše</button></div>
+        <div class="notice" style="margin-bottom:16px">Pro první týdny drž intenzitu přibližně 3–5 z 10. Plavání je volitelná náhrada lehkého regeneračního pohybu, ne další povinný trénink.</div>
+        <div id="planContainer"></div>
+        <div class="card" style="margin-top:18px">
+          <div class="card-head"><div><h3>Historie zapsaných tréninků</h3><p>Včetně běhu, plavání, použitého vybavení a poznámek.</p></div></div>
+          <div class="card-body table-wrap">
+            <table><thead><tr><th>Datum</th><th>Typ</th><th>Čas</th><th>Běh/chůze</th><th>Plavání</th><th>RPE</th><th>Vybavení</th><th>Poznámka</th><th></th></tr></thead>
+            <tbody id="workoutTable"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-measurements">
+        <div class="page-title"><div><h2>Měření a grafy</h2><p>Zapisuj stejné ukazatele za podobných podmínek. Trend je důležitější než jednotlivé číslo.</p></div></div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head"><div><h3>Nové měření</h3><p>Doporučeně každé dva týdny ráno.</p></div></div>
+          <div class="card-body">
+            <form id="measurementForm">
+              <div class="form-grid">
+                <div class="field"><label>Datum</label><input type="date" name="date" required></div>
+                <div class="field"><label>Váha (kg)</label><input type="number" name="weight" min="40" max="200" step="0.1" placeholder="78,0"></div>
+                <div class="field"><label>Pas přes pupík (cm)</label><input type="number" name="waist" min="50" max="180" step="0.1"></div>
+                <div class="field"><label>Klidová TF ráno</label><input type="number" name="restingHr" min="30" max="150"></div>
+                <div class="field"><label>Průměrný spánek (h)</label><input type="number" name="sleep" min="0" max="14" step="0.1"></div>
+                <div class="field"><label>1 km – čas (min)</label><input type="number" name="kmTime" min="3" max="30" step="0.01" placeholder="např. 8,50"></div>
+                <div class="field"><label>Vis na hrazdě (s)</label><input type="number" name="hang" min="0" max="600"></div>
+                <div class="field"><label>Kliky o lavičku – max</label><input type="number" name="pushups" min="0" max="300"></div>
+                <div class="field"><label>Energie (1–5)</label><select name="energy"><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+                <div class="field"><label>Koleno / bolest (0–10)</label><input type="number" name="pain" min="0" max="10"></div>
+                <div class="field span-2"><label>Poznámka</label><input type="text" name="notes" placeholder="Spánek, únava, motivace, podmínky testu…"></div>
+              </div>
+              <div class="form-actions"><button class="btn primary" type="submit">Uložit měření</button></div>
+            </form>
+          </div>
+        </div>
+
+        <div class="charts">
+          <div class="card">
+            <div class="card-head"><div><h3>Vývoj ukazatele</h3><p>Vyber metriku pro graf.</p></div>
+              <select id="metricSelect" style="width:auto">
+                <option value="weight">Hmotnost</option><option value="waist">Pas</option><option value="restingHr">Klidová TF</option>
+                <option value="sleep">Spánek</option><option value="kmTime">1 km čas</option><option value="hang">Vis</option>
+                <option value="pushups">Kliky</option><option value="energy">Energie</option><option value="pain">Bolest</option>
+              </select>
+            </div>
+            <div class="card-body"><canvas id="metricChart" height="280"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Tréninkové minuty</h3><p>Součet podle týdnů.</p></div></div>
+            <div class="card-body"><canvas id="minutesChart" height="280"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Běžecká vzdálenost</h3><p>Kilometry podle týdnů.</p></div></div>
+            <div class="card-body"><canvas id="runChart" height="280"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Plavecká vzdálenost</h3><p>Metry podle týdnů.</p></div></div>
+            <div class="card-body"><canvas id="swimChart" height="280"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <div class="card-head"><div><h3>Historie měření</h3><p>Záznamy lze jednotlivě odstranit.</p></div></div>
+          <div class="card-body table-wrap">
+            <table><thead><tr><th>Datum</th><th>Váha</th><th>Pas</th><th>TF</th><th>Spánek</th><th>1 km</th><th>Vis</th><th>Kliky</th><th>Energie</th><th></th></tr></thead>
+              <tbody id="measurementTable"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-exercises">
+        <div class="page-title"><div><h2>Cviky a videa</h2><p>Začni lehkou variantou. Odkazy se otevřou přímo na YouTube.</p></div></div>
+        <div class="tabs" id="exerciseTabs"><button class="active" data-filter="all">Vše</button><button data-filter="A">Trénink A</button><button data-filter="B">Trénink B</button></div>
+        <div class="exercise-grid" id="exerciseGrid"></div>
+      </section>
+
+      <section class="page" id="page-data">
+        <div class="page-title"><div><h2>Data a nastavení</h2><p>Záloha je důležitá hlavně před změnou telefonu nebo smazáním dat Safari.</p></div></div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head"><div><h3>Firebase účet a synchronizace</h3><p>Přihlášení umožní sdílet stejná data mezi iPhonem a počítačem.</p></div></div>
+          <div class="card-body">
+            <div class="auth-panel">
+              <div><strong id="accountStatus">Lokální režim</strong><small id="accountDetail">Data jsou pouze v tomto prohlížeči.</small></div>
+              <div class="auth-actions"><button class="btn primary" id="accountLoginBtn">Přihlásit přes Google</button><button class="btn" id="syncNowBtn" style="display:none">Synchronizovat</button><button class="btn danger" id="logoutBtn" style="display:none">Odhlásit</button></div>
+            </div>
+            <div class="connection-note">Veřejná Firebase konfigurace v souboru <code>firebase-config.js</code> není heslo. Soukromí dat zajišťuje přihlášení a pravidla Firestore.</div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head"><div><h3>Profil a cíle</h3><p>Údaje se používají pouze uvnitř této aplikace.</p></div></div>
+          <div class="card-body">
+            <form id="profileForm"><div class="form-grid">
+              <div class="field"><label>Jméno / přezdívka</label><input name="name" placeholder="Spartan"></div>
+              <div class="field"><label>Začátek přípravy</label><input type="date" name="startDate"></div>
+              <div class="field"><label>Kontrolní závod</label><input type="date" name="raceDate"></div>
+              <div class="field"><label>Hlavní cíl</label><input name="goal"></div>
+            </div><div class="form-actions"><button class="btn primary" type="submit">Uložit profil</button></div></form>
+          </div>
+        </div>
+
+        <div class="data-grid">
+          <div class="card data-action"><h3>Export zálohy</h3><p>Stáhne kompletní JSON se všemi tréninky, měřeními a nastavením.</p><button class="btn dark" id="exportBtn">Stáhnout zálohu</button></div>
+          <div class="card data-action"><h3>Import zálohy</h3><p>Obnoví data ze souboru vytvořeného touto aplikací.</p><input type="file" id="importFile" accept=".json,application/json" style="margin-bottom:10px"><button class="btn" id="importBtn">Importovat</button></div>
+          <div class="card data-action"><h3>Export měření CSV</h3><p>Tabulku lze otevřít v Excelu, Numbers nebo Google Sheets.</p><button class="btn" id="csvBtn">Stáhnout měření</button></div>
+          <div class="card data-action"><h3>Export tréninků CSV</h3><p>Obsahuje čas, vzdálenost, plavání, RPE, vybavení a poznámky.</p><button class="btn" id="workoutCsvBtn">Stáhnout tréninky</button></div>
+          <div class="card data-action"><h3>Instalace jako aplikace</h3><p>Po publikování na HTTPS lze web přidat na plochu telefonu.</p><button class="btn primary" id="installBtn">Instalovat / zobrazit návod</button></div>
+          <div class="card data-action"><h3>Vymazat všechna data</h3><p>Tato akce je nevratná. Nejdříve si stáhni zálohu.</p><button class="btn danger" id="resetBtn">Vymazat data</button></div>
+        </div>
+        <div class="notice install-help" id="installHelp" style="margin-top:18px">
+          <strong>iPhone:</strong> otevři publikovanou adresu v Safari → Sdílet → Přidat na plochu → zapni „Otevřít jako webovou aplikaci“ → Přidat.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" id="mobileNav">
+    <button data-page="dashboard" class="active"><span>⌂</span>Přehled</button>
+    <button data-page="plan"><span>✓</span>Plán</button>
+    <button data-page="measurements"><span>↗</span>Měření</button>
+    <button data-page="exercises"><span>▶</span>Cviky</button>
+    <button data-page="data"><span>⚙</span>Data</button>
+  </nav>
+</div>
+
+<div class="modal" id="workoutModal">
+  <div class="modal-card">
+    <div class="modal-head"><h3 id="modalTitle">Zapsat trénink</h3><button class="close" id="modalClose">×</button></div>
+    <div class="modal-body">
+      <form id="workoutForm">
+        <input type="hidden" name="sessionId">
+        <div class="form-grid">
+          <div class="field"><label>Datum</label><input type="date" name="date" required></div>
+          <div class="field"><label>Typ</label><select name="type"><option>Silový A</option><option>Silový B</option><option>Běh</option><option>Plavání</option><option>Terén</option><option>Chůze</option><option>Mobilita</option><option>Jiné</option></select></div>
+          <div class="field"><label>Délka (min)</label><input type="number" name="duration" min="0" max="600" required></div>
+          <div class="field"><label>Běh / chůze (km)</label><input type="number" name="distanceKm" min="0" max="200" step="0.01" placeholder="např. 3,50"></div>
+          <div class="field"><label>Plavání (m)</label><input type="number" name="swimMeters" min="0" max="100000" step="25" placeholder="např. 500"></div>
+          <div class="field"><label>Průměrná TF</label><input type="number" name="avgHr" min="30" max="240"></div>
+          <div class="field"><label>Náročnost RPE (1–10)</label><input type="number" name="rpe" min="1" max="10"></div>
+          <div class="field"><label>Bolest / koleno (0–10)</label><input type="number" name="pain" min="0" max="10"></div>
+          <div class="field"><label>Pocit po tréninku (1–5)</label><select name="feeling"><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+          <div class="field span-2"><label>Použité vybavení / zátěž</label><input name="equipment" placeholder="např. KB 8 kg, zelená guma"></div>
+          <div class="field span-2"><label>Trasa / bazén</label><input name="route" placeholder="např. park, kopce, 25m bazén"></div>
+          <div class="field span-4"><label>Poznámka</label><textarea name="notes" placeholder="Tempo, technika, pauzy, pocit, problémy a další postup…"></textarea></div>
+        </div>
+        <div class="form-actions"><button type="button" class="btn" id="markIncompleteBtn" style="display:none">Označit nesplněno</button><button class="btn primary" type="submit">Uložit jako splněné</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="authModal">
+  <div class="modal-card">
+    <div class="modal-head"><h3>Přihlášení přes Google</h3><button class="close" id="authModalClose">×</button></div>
+    <div class="modal-body">
+      <div class="notice" id="firebaseMissingNotice" style="display:none;margin-bottom:14px">Firebase konfigurace se nenačetla. Zkontroluj soubor <code>firebase-config.js</code> a publikování přes GitHub Pages.</div>
+      <p style="margin-top:0">Použij stejný Google účet na iPhonu i počítači. Každý Google účet má ve Firestore oddělená data.</p>
+      <button class="btn primary" id="googleLoginBtn" style="width:100%;padding:13px 16px">G&nbsp;&nbsp; Pokračovat přes Google</button>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:0">Po prvním přihlášení se lokální záznamy nahrají do tvého soukromého dokumentu. Na dalším zařízení se po přihlášení stáhne novější verze.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Uloženo</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
