@@ -1,4 +1,4 @@
-const CACHE = "spartan-tracker-google-v3";
+const CACHE = "spartan-tracker-v4";
 const ASSETS = [
   "./",
   "./index.html",

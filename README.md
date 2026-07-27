@@ -19,3 +19,12 @@ python3 -m http.server 8000
 Potom otevři `http://localhost:8000`.
 
 Bez doplněné Firebase konfigurace aplikace normálně funguje v lokálním režimu.
+
+
+## Verze 3 – měření a denní rutina
+- opraven průměr spánku (prázdné hodnoty se už nezapočítávají jako nuly),
+- spánek se ukládá v hodinách a minutách,
+- samostatné formuláře pro spánek, váhu, denní stav a kontrolní test,
+- více záznamů stejného dne se při migraci spojí do jednoho řádku,
+- denní checklist doplňků,
+- nové responzivní SVG grafy.

@@ -6,8 +6,16 @@ import { firebaseConfig } from "./firebase-config.js";
 (() => {
   "use strict";
   const STORAGE_KEY = "spartanTrackerFirebaseV2";
+  const STATE_VERSION = 3;
   const titles = {dashboard:"Přehled",plan:"Tréninkový plán",measurements:"Měření a grafy",exercises:"Cviky a videa",data:"Data a nastavení"};
   const measurementDates = ["2026-07-26","2026-08-10","2026-08-24","2026-09-07","2026-09-21","2026-10-05"];
+  const supplementItems = [
+    {key:"creatine1",label:"Kreatin – 1. dávka"},
+    {key:"creatine2",label:"Kreatin – 2. dávka"},
+    {key:"collagen",label:"Kolagen"},
+    {key:"magnesium",label:"Magnezium"},
+    {key:"multivitamin",label:"Multivitamin"}
+  ];
 
   const weeks = [
     {label:"Start • 26. 7.–2. 8.",start:"2026-07-26",end:"2026-08-02",sessions:[
@@ -111,11 +119,12 @@ import { firebaseConfig } from "./firebase-config.js";
   ];
 
   const initialState = () => ({
-    version:2,
+    version:STATE_VERSION,
     profile:{name:"",startDate:"2026-07-26",raceDate:"2026-10-10",goal:"Liberec Super 2027"},
     completions:{},
     customWorkouts:[],
     measurements:[],
+    supplements:{},
     createdAt:new Date().toISOString(),
     updatedAt:Date.now()
   });
@@ -130,17 +139,39 @@ import { firebaseConfig } from "./firebase-config.js";
   let firebaseAvailable = false;
   let syncBusy = false;
 
-  function loadState(){
-    try{
-      const raw=localStorage.getItem(STORAGE_KEY)||localStorage.getItem("spartanTrackerV1");
-      if(!raw) return initialState();
-      const parsed=JSON.parse(raw);
-      return {...initialState(),...parsed,profile:{...initialState().profile,...(parsed.profile||{})},completions:parsed.completions||{},customWorkouts:parsed.customWorkouts||[],measurements:parsed.measurements||[]};
-    }catch(e){return initialState();}
+  function hasValue(value){
+    return value!=="" && value!==null && value!==undefined && !(typeof value==="number" && Number.isNaN(value));
+  }
+  function sleepMinutesFrom(record){
+    if(hasValue(record?.sleepMinutes))return Math.round(Number(record.sleepMinutes));
+    if(hasValue(record?.sleep))return Math.round(Number(record.sleep)*60);
+    return null;
+  }
+  function migrateMeasurements(records=[]){
+    const byDate=new Map();
+    [...records].sort((a,b)=>(a.date||"").localeCompare(b.date||"")).forEach(record=>{
+      if(!record?.date)return;
+      const target=byDate.get(record.date)||{id:`d-${record.date}`,date:record.date};
+      ["weight","waist","restingHr","kmTime","hang","pushups","energy","pain","notes"].forEach(key=>{
+        if(hasValue(record[key]))target[key]=record[key];
+      });
+      const mins=sleepMinutesFrom(record);
+      if(mins!==null)target.sleepMinutes=mins;
+      target.updatedAt=record.updatedAt||target.updatedAt||new Date().toISOString();
+      byDate.set(record.date,target);
+    });
+    return [...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
   }
   function normalizeState(value){
     const base=initialState();
-    return {...base,...value,profile:{...base.profile,...(value?.profile||{})},completions:value?.completions||{},customWorkouts:value?.customWorkouts||[],measurements:value?.measurements||[]};
+    const normalized={...base,...(value||{}),version:STATE_VERSION,profile:{...base.profile,...(value?.profile||{})},completions:value?.completions||{},customWorkouts:value?.customWorkouts||[],measurements:migrateMeasurements(value?.measurements||[]),supplements:value?.supplements||{}};
+    return normalized;
+  }
+  function loadState(){
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY)||localStorage.getItem("spartanTrackerV1");
+      return raw?normalizeState(JSON.parse(raw)):initialState();
+    }catch(e){return initialState();}
   }
   function saveLocal(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
   function saveState(){
@@ -267,6 +298,30 @@ import { firebaseConfig } from "./firebase-config.js";
   function isoToday(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
   function parseDate(iso){const [y,m,d]=iso.split("-").map(Number);return new Date(y,m-1,d)}
   function fmtDate(iso,opts={day:"numeric",month:"numeric",year:"numeric"}){return parseDate(iso).toLocaleDateString("cs-CZ",opts)}
+  function formatSleep(minutes){
+    if(!hasValue(minutes))return "—";
+    const total=Math.max(0,Math.round(Number(minutes)));
+    return `${Math.floor(total/60)} h ${String(total%60).padStart(2,"0")} min`;
+  }
+  function sleepAxis(minutes){
+    if(!Number.isFinite(Number(minutes)))return "—";
+    const total=Math.round(Number(minutes));
+    return `${Math.floor(total/60)}:${String(total%60).padStart(2,"0")}`;
+  }
+  function findMeasurement(date){return state.measurements.find(m=>m.date===date)||null}
+  function upsertMeasurement(date,patch){
+    let record=findMeasurement(date);
+    if(!record){record={id:`d-${date}`,date};state.measurements.push(record);}
+    Object.entries(patch).forEach(([key,value])=>{if(hasValue(value))record[key]=value;});
+    record.updatedAt=new Date().toISOString();
+    state.measurements=migrateMeasurements(state.measurements);
+    saveState();
+  }
+  function dateRange(endIso,count){
+    const result=[];const end=parseDate(endIso);
+    for(let i=count-1;i>=0;i--){const d=new Date(end);d.setDate(d.getDate()-i);result.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`);}
+    return result;
+  }
   function daysBetween(a,b){return Math.ceil((parseDate(b)-parseDate(a))/86400000)}
   function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
   function toast(msg){const t=qs("#toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800)}
@@ -326,8 +381,8 @@ import { firebaseConfig } from "./firebase-config.js";
       qs("#weightMetric").textContent=`${last.toFixed(1)} kg`;
       qs("#weightHint").textContent=weights.length>1?`${diff>0?"+":""}${diff.toFixed(1)} kg od začátku`:"výchozí hodnota";
     }else{qs("#weightMetric").textContent="—";qs("#weightHint").textContent="zatím bez měření"}
-    const sleeps=ms.slice(-6).map(m=>Number(m.sleep)).filter(Number.isFinite);
-    qs("#sleepMetric").textContent=sleeps.length?`${(sleeps.reduce((a,b)=>a+b,0)/sleeps.length).toFixed(1)} h`:"—";
+    const sleeps=ms.filter(m=>hasValue(m.sleepMinutes)).slice(-7).map(m=>Number(m.sleepMinutes)).filter(Number.isFinite);
+    qs("#sleepMetric").textContent=sleeps.length?formatSleep(Math.round(sleeps.reduce((a,b)=>a+b,0)/sleeps.length)):"—";
 
     const future=plan.filter(s=>s.date>=today&&!completedSession(s.id)).slice(0,5);
     const upcoming=future.length?future:plan.filter(s=>!completedSession(s.id)).slice(-5);
@@ -338,8 +393,7 @@ import { firebaseConfig } from "./firebase-config.js";
         <button class="btn small" data-log="${s.id}">Zapsat</button>
       </div>`).join(""):`<div class="empty">Všechny plánované jednotky jsou splněné.</div>`;
 
-    const next=measurementDates.find(d=>d>=today) || measurementDates.at(-1);
-    qs("#nextMeasureDate").textContent=fmtDate(next,{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+    renderSupplementChecklist();
     drawWeightMini();
     drawWeekly();
   }
@@ -383,14 +437,42 @@ import { firebaseConfig } from "./firebase-config.js";
     </tr>`).join(""):`<tr><td colspan="9" class="empty">Zatím není uložen žádný trénink.</td></tr>`;
   }
 
+  function initMeasureFormDates(){
+    ["sleepForm","weightForm","dailyStatusForm","performanceForm"].forEach(id=>{
+      const form=qs(`#${id}`);if(form&&!form.date.value)form.date.value=isoToday();
+    });
+  }
+  function populateMeasureForm(formId){
+    const form=qs(`#${formId}`);if(!form)return;
+    const record=findMeasurement(form.date.value);
+    if(formId==="sleepForm"){
+      const mins=record?.sleepMinutes;
+      form.sleepHours.value=hasValue(mins)?Math.floor(Number(mins)/60):"";
+      form.sleepMins.value=hasValue(mins)?Number(mins)%60:"";
+      qs("#sleepLastValue").textContent=record&&hasValue(mins)?`Uloženo pro tento den: ${formatSleep(mins)}`:"Pro tento den zatím spánek není uložen.";
+    }
+    if(formId==="weightForm"){
+      form.weight.value=record&&hasValue(record.weight)?record.weight:"";
+      qs("#weightLastValue").textContent=record&&hasValue(record.weight)?`Uloženo pro tento den: ${Number(record.weight).toFixed(1)} kg`:"Pro tento den zatím váha není uložená.";
+    }
+    if(formId==="dailyStatusForm"){
+      ["restingHr","energy","pain","notes"].forEach(k=>form[k].value=record&&hasValue(record[k])?record[k]:"");
+    }
+    if(formId==="performanceForm"){
+      ["waist","kmTime","hang","pushups"].forEach(k=>form[k].value=record&&hasValue(record[k])?record[k]:"");
+    }
+  }
   function renderMeasurements(){
-    const f=qs("#measurementForm");
-    if(!f.date.value)f.date.value=isoToday();
+    initMeasureFormDates();
+    ["sleepForm","weightForm","dailyStatusForm","performanceForm"].forEach(populateMeasureForm);
     const arr=[...state.measurements].sort((a,b)=>b.date.localeCompare(a.date));
     qs("#measurementTable").innerHTML=arr.length?arr.map(m=>`<tr>
-      <td>${fmtDate(m.date)}</td><td>${m.weight||"—"}</td><td>${m.waist||"—"}</td><td>${m.restingHr||"—"}</td><td>${m.sleep||"—"}</td>
-      <td>${m.kmTime||"—"}</td><td>${m.hang||"—"}</td><td>${m.pushups||"—"}</td><td>${m.energy||"—"}</td>
-      <td><button class="btn small danger" data-del-measure="${m.id}">Smazat</button></td></tr>`).join(""):`<tr><td colspan="10" class="empty">Zatím není uložené žádné měření.</td></tr>`;
+      <td>${fmtDate(m.date)}</td><td>${hasValue(m.weight)?Number(m.weight).toFixed(1):"—"}</td><td>${hasValue(m.waist)?m.waist:"—"}</td>
+      <td>${hasValue(m.restingHr)?m.restingHr:"—"}</td><td>${formatSleep(m.sleepMinutes)}</td><td>${hasValue(m.kmTime)?m.kmTime:"—"}</td>
+      <td>${hasValue(m.hang)?m.hang:"—"}</td><td>${hasValue(m.pushups)?m.pushups:"—"}</td><td>${hasValue(m.energy)?m.energy:"—"}</td>
+      <td>${hasValue(m.pain)?m.pain:"—"}</td><td class="history-note">${esc(m.notes||"")}</td>
+      <td><button class="btn small danger" data-del-measure="${m.id}">Smazat den</button></td></tr>`).join(""):`<tr><td colspan="12" class="empty">Zatím není uložené žádné měření.</td></tr>`;
+    renderSupplementHistory();
     drawMetricChart();drawMinutesChart();drawRunChart();drawSwimChart();
   }
 
@@ -441,64 +523,111 @@ import { firebaseConfig } from "./firebase-config.js";
     if(id){delete state.completions[id];saveState();closeWorkout();renderAll();toast("Jednotka označena jako nesplněná")}
   }
 
-  function handleMeasure(e){
-    e.preventDefault();const fd=new FormData(e.currentTarget);const obj=Object.fromEntries(fd.entries());
-    ["weight","waist","restingHr","sleep","kmTime","hang","pushups","energy","pain"].forEach(k=>{if(obj[k]!=="")obj[k]=Number(obj[k])});
-    obj.id=`m-${Date.now()}`;state.measurements.push(obj);state.measurements.sort((a,b)=>a.date.localeCompare(b.date));
-    saveState();e.currentTarget.reset();e.currentTarget.date.value=isoToday();renderAll();switchPage("measurements");toast("Měření uloženo");
+  function handleSleep(e){
+    e.preventDefault();const form=e.currentTarget;
+    const hours=form.sleepHours.value===""?0:Number(form.sleepHours.value);
+    const minutes=form.sleepMins.value===""?0:Number(form.sleepMins.value);
+    if(hours===0&&minutes===0){toast("Vyplň délku spánku");return;}
+    upsertMeasurement(form.date.value,{sleepMinutes:hours*60+minutes});
+    renderAll();toast("Spánek uložen");
+  }
+  function handleWeight(e){
+    e.preventDefault();const form=e.currentTarget;
+    upsertMeasurement(form.date.value,{weight:Number(form.weight.value)});
+    renderAll();toast("Váha uložena");
+  }
+  function handleDailyStatus(e){
+    e.preventDefault();const form=e.currentTarget;const patch={};
+    ["restingHr","energy","pain"].forEach(k=>{if(form[k].value!=="")patch[k]=Number(form[k].value)});
+    if(form.notes.value.trim())patch.notes=form.notes.value.trim();
+    if(!Object.keys(patch).length){toast("Vyplň alespoň jednu hodnotu");return;}
+    upsertMeasurement(form.date.value,patch);renderAll();toast("Denní stav uložen");
+  }
+  function handlePerformance(e){
+    e.preventDefault();const form=e.currentTarget;const patch={};
+    ["waist","kmTime","hang","pushups"].forEach(k=>{if(form[k].value!=="")patch[k]=Number(form[k].value)});
+    if(!Object.keys(patch).length){toast("Vyplň alespoň jednu hodnotu");return;}
+    upsertMeasurement(form.date.value,patch);renderAll();toast("Kontrolní hodnoty uloženy");
   }
 
   function fillProfile(){
     const f=qs("#profileForm");Object.entries(state.profile).forEach(([k,v])=>{if(f.elements[k])f.elements[k].value=v||""});
   }
 
-  function drawBase(canvas){
-    const ratio=window.devicePixelRatio||1;const rect=canvas.getBoundingClientRect();
-    const w=Math.max(320,rect.width),h=Number(canvas.getAttribute("height"))||260;
-    canvas.width=w*ratio;canvas.height=h*ratio;const ctx=canvas.getContext("2d");ctx.scale(ratio,ratio);ctx.clearRect(0,0,w,h);
-    return {ctx,w,h};
+  function niceTicks(min,max,count=4){
+    if(min===max){const pad=Math.max(1,Math.abs(min)*.05);min-=pad;max+=pad;}
+    const range=max-min;
+    const rough=range/count;
+    const pow=Math.pow(10,Math.floor(Math.log10(Math.max(rough,0.0001))));
+    const norm=rough/pow;
+    const step=(norm<=1?1:norm<=2?2:norm<=5?5:10)*pow;
+    const start=Math.floor(min/step)*step,end=Math.ceil(max/step)*step;
+    const ticks=[];for(let v=start;v<=end+step*.1;v+=step)ticks.push(Number(v.toFixed(8)));
+    return {min:start,max:end,ticks};
   }
-  function drawEmpty(ctx,w,h,text="Zatím není dost dat"){
-    ctx.fillStyle="#718096";ctx.font="14px -apple-system,Segoe UI,Arial";ctx.textAlign="center";ctx.fillText(text,w/2,h/2);
+  function chartEmpty(host,text="Zatím není dost dat"){host.innerHTML=`<div class="chart-empty">${esc(text)}</div>`}
+  function lineChart(host,points,{formatY=v=>String(v),formatPoint=v=>String(v)}={}){
+    if(!host)return;
+    if(!points.length){chartEmpty(host);return;}
+    const W=760,H=280,p={l:68,r:24,t:22,b:46};
+    const values=points.map(x=>Number(x.value)).filter(Number.isFinite);
+    if(!values.length){chartEmpty(host);return;}
+    const scale=niceTicks(Math.min(...values),Math.max(...values),4);
+    const x=i=>points.length===1?(p.l+W-p.r)/2:p.l+(W-p.l-p.r)*i/(points.length-1);
+    const y=v=>p.t+(scale.max-v)/(scale.max-scale.min)*(H-p.t-p.b);
+    const grid=scale.ticks.map(v=>`<g><line x1="${p.l}" y1="${y(v)}" x2="${W-p.r}" y2="${y(v)}" stroke="#e2e8f0"/><text x="${p.l-10}" y="${y(v)+4}" text-anchor="end" fill="#718096" font-size="12">${esc(formatY(v))}</text></g>`).join("");
+    const step=Math.max(1,Math.ceil(points.length/6));
+    const xlabels=points.map((pt,i)=>(i%step===0||i===points.length-1)?`<text x="${x(i)}" y="${H-14}" text-anchor="middle" fill="#718096" font-size="12">${esc(pt.label)}</text>`:"").join("");
+    const path=points.map((pt,i)=>`${i?"L":"M"} ${x(i).toFixed(1)} ${y(Number(pt.value)).toFixed(1)}`).join(" ");
+    const dots=points.map((pt,i)=>`<circle cx="${x(i)}" cy="${y(Number(pt.value))}" r="5" fill="#fff" stroke="#ef5b4c" stroke-width="3"><title>${esc(pt.label)}: ${esc(formatPoint(Number(pt.value)))}</title></circle>`).join("");
+    host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Vývoj hodnot">${grid}<path d="${path}" fill="none" stroke="#ef5b4c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>${dots}${xlabels}</svg>`;
   }
-  function drawLine(canvas,points,{suffix="",inverse=false}={}){
-    const {ctx,w,h}=drawBase(canvas);if(points.length<1){drawEmpty(ctx,w,h);return}
-    const pad={l:48,r:18,t:20,b:38};const vals=points.map(p=>p.value);let min=Math.min(...vals),max=Math.max(...vals);
-    if(min===max){min-=1;max+=1}else{const extra=(max-min)*.15;min-=extra;max+=extra}
-    ctx.strokeStyle="#e2e8f0";ctx.lineWidth=1;ctx.font="11px -apple-system,Segoe UI,Arial";ctx.fillStyle="#718096";
-    for(let i=0;i<5;i++){const y=pad.t+(h-pad.t-pad.b)*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
-      const val=max-(max-min)*i/4;ctx.textAlign="right";ctx.fillText(`${val.toFixed(max-min<10?1:0)}${suffix}`,pad.l-7,y+4)}
-    const x=i=>points.length===1?(pad.l+w-pad.r)/2:pad.l+(w-pad.l-pad.r)*i/(points.length-1);
-    const y=v=>pad.t+(max-v)/(max-min)*(h-pad.t-pad.b);
-    ctx.strokeStyle="#ef5b4c";ctx.lineWidth=3;ctx.lineJoin="round";ctx.lineCap="round";ctx.beginPath();
-    points.forEach((p,i)=>i?ctx.lineTo(x(i),y(p.value)):ctx.moveTo(x(i),y(p.value)));ctx.stroke();
-    points.forEach((p,i)=>{ctx.fillStyle="#fff";ctx.strokeStyle="#ef5b4c";ctx.lineWidth=2;ctx.beginPath();ctx.arc(x(i),y(p.value),4,0,Math.PI*2);ctx.fill();ctx.stroke()});
-    ctx.fillStyle="#718096";ctx.textAlign="center";ctx.font="10px -apple-system,Segoe UI,Arial";
-    const step=Math.max(1,Math.ceil(points.length/6));points.forEach((p,i)=>{if(i%step===0||i===points.length-1)ctx.fillText(p.label,x(i),h-13)});
+  function barChart(host,points,{formatY=v=>String(Math.round(v)),formatPoint=v=>String(v),goal=null,colorByGoal=false}={}){
+    if(!host)return;
+    if(!points.length){chartEmpty(host);return;}
+    const W=760,H=280,p={l:62,r:20,t:22,b:48};
+    const maxValue=Math.max(1,...points.map(x=>Number(x.value)||0),goal||0);
+    const scale=niceTicks(0,maxValue,4);
+    const plotWidth=W-p.l-p.r;
+    const slot=plotWidth/points.length;
+    const bw=Math.max(16,Math.min(76,slot*.62));
+    const y=v=>p.t+(scale.max-v)/(scale.max-scale.min)*(H-p.t-p.b);
+    const grid=scale.ticks.map(v=>`<g><line x1="${p.l}" y1="${y(v)}" x2="${W-p.r}" y2="${y(v)}" stroke="#e2e8f0"/><text x="${p.l-10}" y="${y(v)+4}" text-anchor="end" fill="#718096" font-size="12">${esc(formatY(v))}</text></g>`).join("");
+    const goalLine=goal!==null?`<line x1="${p.l}" y1="${y(goal)}" x2="${W-p.r}" y2="${y(goal)}" stroke="#d98d1d" stroke-width="2" stroke-dasharray="7 6"><title>Cíl ${goal}</title></line>`:"";
+    const bars=points.map((pt,i)=>{
+      const val=Number(pt.value)||0,x=p.l+i*slot+(slot-bw)/2,top=y(val),height=Math.max(0,H-p.b-top);
+      const fill=colorByGoal?(val>=Number(goal||3)?"#1f9d72":"#ef5b4c"):"#1f9d72";
+      return `<rect x="${x}" y="${top}" width="${bw}" height="${height}" rx="7" fill="${fill}"><title>${esc(pt.label)}: ${esc(formatPoint(val))}</title></rect><text x="${x+bw/2}" y="${H-16}" text-anchor="middle" fill="#718096" font-size="12">${esc(pt.label)}</text>`;
+    }).join("");
+    host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Sloupcový graf">${grid}${goalLine}${bars}</svg>`;
   }
-  function drawBars(canvas,points,{suffix=""}={}){
-    const {ctx,w,h}=drawBase(canvas);if(points.length<1){drawEmpty(ctx,w,h);return}
-    const pad={l:38,r:14,t:20,b:42};const max=Math.max(1,...points.map(p=>p.value));const area=w-pad.l-pad.r;const gap=8;const bw=Math.max(10,(area-gap*(points.length-1))/points.length);
-    ctx.strokeStyle="#e2e8f0";ctx.fillStyle="#718096";ctx.font="10px -apple-system,Segoe UI,Arial";
-    for(let i=0;i<4;i++){const y=pad.t+(h-pad.t-pad.b)*i/3;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.textAlign="right";ctx.fillText(`${Math.round(max-(max*i/3))}${suffix}`,pad.l-5,y+3)}
-    points.forEach((p,i)=>{const x=pad.l+i*(bw+gap);const bh=(h-pad.t-pad.b)*p.value/max;const y=h-pad.b-bh;
-      ctx.fillStyle=p.value>=3?"#1f9d72":"#ef5b4c";roundRect(ctx,x,y,bw,bh,5);ctx.fill();
-      ctx.fillStyle="#718096";ctx.textAlign="center";ctx.fillText(p.label,x+bw/2,h-17);
-    });
+  function currentWeekSeries(values){
+    const maxIndex=Math.max(0,Math.min(currentWeekIndex(),values.length-1));
+    return values.slice(0,maxIndex+1);
   }
-  function roundRect(ctx,x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
   function drawWeightMini(){
-    const pts=[...state.measurements].sort((a,b)=>a.date.localeCompare(b.date)).filter(m=>m.weight!==""&&Number.isFinite(Number(m.weight))).slice(-12).map(m=>({label:fmtDate(m.date,{day:"numeric",month:"numeric"}),value:Number(m.weight)}));
-    drawLine(qs("#weightMiniChart"),pts,{suffix:""});
+    const pts=[...state.measurements].sort((a,b)=>a.date.localeCompare(b.date)).filter(m=>hasValue(m.weight)&&Number.isFinite(Number(m.weight))).slice(-12).map(m=>({label:fmtDate(m.date,{day:"numeric",month:"numeric"}),value:Number(m.weight)}));
+    lineChart(qs("#weightMiniChart"),pts,{formatY:v=>`${v.toFixed(1)}`,formatPoint:v=>`${v.toFixed(1)} kg`});
   }
   function weeklyStats(){
-    return weeks.map((w,wi)=>({label:`T${wi+1}`,value:plan.filter(s=>s.week===wi&&completedSession(s.id)).length}));
+    return weeks.map((w,wi)=>({label:`T${wi+1}`,value:plan.filter(s=>s.week===wi&&!s.optional&&completedSession(s.id)).length}));
   }
-  function drawWeekly(){drawBars(qs("#weeklyChart"),weeklyStats())}
+  function drawWeekly(){barChart(qs("#weeklyChart"),currentWeekSeries(weeklyStats()),{goal:3,colorByGoal:true,formatPoint:v=>`${v} splněné`})}
   function drawMetricChart(){
-    const key=qs("#metricSelect").value;const labels={weight:["kg",""],waist:["cm",""],restingHr:["",""],sleep:["h",""],kmTime:["min",""],hang:["s",""],pushups:["",""],energy:["",""],pain:["",""]};
-    const pts=[...state.measurements].sort((a,b)=>a.date.localeCompare(b.date)).filter(m=>m[key]!==""&&m[key]!=null&&Number.isFinite(Number(m[key]))).map(m=>({label:fmtDate(m.date,{day:"numeric",month:"numeric"}),value:Number(m[key])}));
-    drawLine(qs("#metricChart"),pts,{suffix:labels[key][0]});
+    const key=qs("#metricSelect").value;
+    const config={
+      weight:{axis:v=>v.toFixed(1),point:v=>`${v.toFixed(1)} kg`},
+      waist:{axis:v=>v.toFixed(0),point:v=>`${v.toFixed(1)} cm`},
+      restingHr:{axis:v=>Math.round(v),point:v=>`${Math.round(v)} tepů/min`},
+      sleepMinutes:{axis:sleepAxis,point:formatSleep},
+      kmTime:{axis:v=>v.toFixed(1),point:v=>`${v.toFixed(2)} min`},
+      hang:{axis:v=>Math.round(v),point:v=>`${Math.round(v)} s`},
+      pushups:{axis:v=>Math.round(v),point:v=>`${Math.round(v)}`},
+      energy:{axis:v=>v.toFixed(0),point:v=>`${v}/5`},
+      pain:{axis:v=>v.toFixed(0),point:v=>`${v}/10`}
+    }[key];
+    const pts=[...state.measurements].sort((a,b)=>a.date.localeCompare(b.date)).filter(m=>hasValue(m[key])&&Number.isFinite(Number(m[key]))).map(m=>({label:fmtDate(m.date,{day:"numeric",month:"numeric"}),value:Number(m[key])}));
+    lineChart(qs("#metricChart"),pts,{formatY:config.axis,formatPoint:config.point});
   }
   function weeklyMinutes(){
     return weeks.map((w,wi)=>{
@@ -507,22 +636,49 @@ import { firebaseConfig } from "./firebase-config.js";
       return {label:`T${wi+1}`,value:total};
     });
   }
-  function drawMinutesChart(){drawBars(qs("#minutesChart"),weeklyMinutes(),{suffix:""})}
+  function drawMinutesChart(){barChart(qs("#minutesChart"),currentWeekSeries(weeklyMinutes()),{formatPoint:v=>`${Math.round(v)} min`})}
   function weeklyDistance(key){
     return weeks.map((w,wi)=>{
       const total=allWorkouts().filter(x=>x.date>=w.start&&x.date<=w.end).reduce((a,x)=>a+(Number(x[key])||0),0);
       return {label:`T${wi+1}`,value:key==="swimMeters"?Math.round(total):Number(total.toFixed(2))};
     });
   }
-  function drawRunChart(){drawBars(qs("#runChart"),weeklyDistance("distanceKm"),{suffix:""})}
-  function drawSwimChart(){drawBars(qs("#swimChart"),weeklyDistance("swimMeters"),{suffix:""})}
+  function drawRunChart(){barChart(qs("#runChart"),currentWeekSeries(weeklyDistance("distanceKm")),{formatY:v=>v.toFixed(v<10?1:0),formatPoint:v=>`${v.toFixed(2)} km`})}
+  function drawSwimChart(){barChart(qs("#swimChart"),currentWeekSeries(weeklyDistance("swimMeters")),{formatPoint:v=>`${Math.round(v)} m`})}
+
+  function renderSupplementChecklist(){
+    const date=isoToday();
+    const values=state.supplements[date]||{};
+    qs("#supplementDateLabel").textContent=fmtDate(date,{weekday:"long",day:"numeric",month:"long"});
+    qs("#supplementChecklist").innerHTML=supplementItems.map(item=>`<div class="supplement-item"><label><input type="checkbox" data-supplement="${item.key}" ${values[item.key]?"checked":""}><span>${esc(item.label)}</span></label><span>${values[item.key]?"✓":""}</span></div>`).join("");
+    const done=supplementItems.filter(item=>values[item.key]).length;
+    qs("#supplementScore").textContent=`${done} / ${supplementItems.length}`;
+    qs("#supplementBar").style.width=`${done/supplementItems.length*100}%`;
+  }
+  function toggleSupplement(key,checked){
+    const date=isoToday();
+    state.supplements[date]={...(state.supplements[date]||{}),[key]:checked,updatedAt:new Date().toISOString()};
+    saveState();renderSupplementChecklist();renderSupplementHistory();toast(checked?"Doplněk odškrtnut":"Odškrtnutí zrušeno");
+  }
+  function supplementMark(value){return value?'<span class="status-yes">✓</span>':'<span class="status-no">–</span>'}
+  function renderSupplementHistory(){
+    const body=qs("#supplementHistory");if(!body)return;
+    const dates=dateRange(isoToday(),14).reverse();
+    body.innerHTML=dates.map(date=>{
+      const values=state.supplements[date]||{},done=supplementItems.filter(item=>values[item.key]).length;
+      return `<tr><td>${fmtDate(date,{weekday:"short",day:"numeric",month:"numeric"})}</td>${supplementItems.map(item=>`<td>${supplementMark(!!values[item.key])}</td>`).join("")}<td><strong>${done}/5</strong></td></tr>`;
+    }).join("");
+  }
 
   function exportJSON(){
     const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});downloadBlob(blob,`spartan-tracker-zaloha-${isoToday()}.json`);
   }
   function exportCSV(){
-    const cols=["date","weight","waist","restingHr","sleep","kmTime","hang","pushups","energy","pain","notes"];
-    const lines=[cols.join(";"),...state.measurements.map(m=>cols.map(k=>`"${String(m[k]??"").replaceAll('"','""')}"`).join(";"))];
+    const cols=["date","weight","waist","restingHr","sleepMinutes","sleepFormatted","kmTime","hang","pushups","energy","pain","notes"];
+    const lines=[cols.join(";"),...state.measurements.map(m=>cols.map(k=>{
+      const value=k==="sleepFormatted"?formatSleep(m.sleepMinutes):m[k];
+      return `"${String(value??"").replaceAll('"','""')}"`;
+    }).join(";"))];
     downloadBlob(new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"}),`spartan-mereni-${isoToday()}.csv`);
   }
   function exportWorkoutCSV(){
@@ -534,7 +690,7 @@ import { firebaseConfig } from "./firebase-config.js";
   function downloadBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
   function importJSON(){
     const file=qs("#importFile").files[0];if(!file){toast("Vyber soubor zálohy");return}
-    const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(!data.profile||!data.measurements)throw new Error();state={...initialState(),...data};saveState();renderAll();toast("Záloha importována")}catch(e){alert("Soubor není platná záloha Spartan Trackeru.")}};r.readAsText(file);
+    const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(!data.profile||!data.measurements)throw new Error();state=normalizeState(data);saveState();renderAll();toast("Záloha importována")}catch(e){alert("Soubor není platná záloha Spartan Trackeru.")}};r.readAsText(file);
   }
   function renderAll(){renderDashboard();renderPlan();renderMeasurements();renderExercises();fillProfile()}
 
@@ -542,11 +698,12 @@ import { firebaseConfig } from "./firebase-config.js";
   qsa("[data-go]").forEach(b=>b.addEventListener("click",()=>switchPage(b.dataset.go)));
   document.addEventListener("click",e=>{
     const log=e.target.closest("[data-log]");if(log)openWorkout(log.dataset.log);
-    const del=e.target.closest("[data-del-measure]");if(del&&confirm("Smazat toto měření?")){state.measurements=state.measurements.filter(m=>m.id!==del.dataset.delMeasure);saveState();renderAll();toast("Měření smazáno")}
+    const del=e.target.closest("[data-del-measure]");if(del&&confirm("Smazat všechna měření pro tento den?")){state.measurements=state.measurements.filter(m=>m.id!==del.dataset.delMeasure);saveState();renderAll();toast("Denní měření smazáno")}
     const dw=e.target.closest("[data-del-workout]");if(dw&&confirm("Smazat tento tréninkový záznam?")){if(dw.dataset.planned==="1")delete state.completions[dw.dataset.delWorkout];else state.customWorkouts=state.customWorkouts.filter(w=>w.id!==dw.dataset.delWorkout);saveState();renderAll();toast("Trénink smazán")}
     const wt=e.target.closest(".week-toggle");if(wt){const body=wt.closest(".week").querySelector(".week-sessions");const open=body.style.display!=="none";body.style.display=open?"none":"block";wt.textContent=open?"Zobrazit":"Skrýt"}
   });
   document.addEventListener("change",e=>{
+    if(e.target.matches("[data-supplement]"))toggleSupplement(e.target.dataset.supplement,e.target.checked);
     if(e.target.matches("[data-check]")){
       const id=e.target.dataset.check;
       if(e.target.checked)openWorkout(id);else if(confirm("Označit jednotku jako nesplněnou?")){delete state.completions[id];saveState();renderAll()}else e.target.checked=true;
@@ -555,7 +712,10 @@ import { firebaseConfig } from "./firebase-config.js";
   qs("#quickLogBtn").addEventListener("click",()=>openWorkout());
   qs("#modalClose").addEventListener("click",closeWorkout);qs("#workoutModal").addEventListener("click",e=>{if(e.target===e.currentTarget)closeWorkout()});
   qs("#workoutForm").addEventListener("submit",handleWorkoutSubmit);qs("#markIncompleteBtn").addEventListener("click",markIncomplete);
-  qs("#measurementForm").addEventListener("submit",handleMeasure);qs("#metricSelect").addEventListener("change",drawMetricChart);
+  qs("#sleepForm").addEventListener("submit",handleSleep);qs("#weightForm").addEventListener("submit",handleWeight);
+  qs("#dailyStatusForm").addEventListener("submit",handleDailyStatus);qs("#performanceForm").addEventListener("submit",handlePerformance);
+  ["sleepForm","weightForm","dailyStatusForm","performanceForm"].forEach(id=>qs(`#${id}`).date.addEventListener("change",()=>populateMeasureForm(id)));
+  qs("#metricSelect").addEventListener("change",drawMetricChart);
   qs("#profileForm").addEventListener("submit",e=>{e.preventDefault();state.profile=Object.fromEntries(new FormData(e.currentTarget).entries());saveState();renderAll();toast("Profil uložen")});
   qs("#exportBtn").addEventListener("click",exportJSON);qs("#csvBtn").addEventListener("click",exportCSV);qs("#workoutCsvBtn").addEventListener("click",exportWorkoutCSV);qs("#importBtn").addEventListener("click",importJSON);
   [qs("#sidebarAuthBtn"),qs("#authTopBtn"),qs("#accountLoginBtn")].forEach(btn=>btn.addEventListener("click",async()=>{if(currentUser){await signOut(auth);toast("Odhlášeno")}else openAuthModal()}));
@@ -573,7 +733,7 @@ import { firebaseConfig } from "./firebase-config.js";
   if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 
   qs("#todayLabel").textContent=new Date().toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  qs("#measurementForm").date.value=isoToday();
+  initMeasureFormDates();
   renderAll();
   initFirebase();
 })();
