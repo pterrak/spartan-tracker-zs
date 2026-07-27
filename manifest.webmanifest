@@ -1,8 +1,8 @@
 {
-  "name": "Spartan Tracker",
+  "name": "Spartan Tracker v3.1",
   "short_name": "Spartan",
   "description": "Osobní tréninkový a progresový deník pro přípravu na Spartan Race.",
-  "start_url": "./index.html",
+  "start_url": "./?v=31",
   "display": "standalone",
   "background_color": "#f4f6f9",
   "theme_color": "#17233a",
@@ -24,5 +24,6 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "./?v=31"
 }
