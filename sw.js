@@ -1,9 +1,9 @@
-const CACHE = "spartan-tracker-v31";
+const CACHE = "spartan-tracker-v32";
 const ASSETS = [
   "./",
-  "./?v=31",
+  "./?v=32",
   "./index.html",
-  "./app-v31.js?v=31",
+  "./app-v32.js?v=32",
   "./firebase-config.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
@@ -42,7 +42,7 @@ self.addEventListener("fetch", event => {
       })
       .catch(() =>
         caches.match(event.request).then(cached =>
-          cached || caches.match("./?v=31") || caches.match("./index.html")
+          cached || caches.match("./?v=32") || caches.match("./index.html")
         )
       )
   );
