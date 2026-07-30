@@ -207,7 +207,7 @@
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-mark">S</div><div><strong>Spartan Tracker</strong><small>Liberec 2027 · v3.2</small></div></div>
+    <div class="brand"><div class="brand-mark">S</div><div><strong>Spartan Tracker</strong><small>Liberec 2027 · v3.3</small></div></div>
     <nav class="nav" id="desktopNav">
       <button data-page="dashboard" class="active"><span class="icon">⌂</span>Přehled</button>
       <button data-page="plan"><span class="icon">✓</span>Tréninkový plán</button>
@@ -409,7 +409,8 @@
 
       <section class="page" id="page-exercises">
         <div class="page-title"><div><h2>Cviky a videa</h2><p>Začni lehkou variantou. Odkazy se otevřou přímo na YouTube.</p></div></div>
-        <div class="tabs" id="exerciseTabs"><button class="active" data-filter="all">Vše</button><button data-filter="A">Trénink A</button><button data-filter="B">Trénink B</button></div>
+        <div class="notice" id="exerciseIntro" style="margin-bottom:15px">Tréninky A a B zůstávají základem plánu. C je domácí alternativa zaměřená na břicho a stabilitu středu; D je venkovní alternativa pro workoutové hřiště. Tréninky C a D nejsou automaticky vloženy do kalendáře.</div>
+        <div class="tabs" id="exerciseTabs"><button class="active" data-filter="all">Vše</button><button data-filter="A">Trénink A</button><button data-filter="B">Trénink B</button><button data-filter="C">Trénink C – břicho</button><button data-filter="D">Trénink D – venku</button></div>
         <div class="exercise-grid" id="exerciseGrid"></div>
       </section>
 
@@ -469,7 +470,7 @@
         <input type="hidden" name="sessionId">
         <div class="form-grid">
           <div class="field"><label>Datum</label><input type="date" name="date" required></div>
-          <div class="field"><label>Typ</label><select name="type"><option>Silový A</option><option>Silový B</option><option>Běh</option><option>Plavání</option><option>Terén</option><option>Chůze</option><option>Mobilita</option><option>Jiné</option></select></div>
+          <div class="field"><label>Typ</label><select name="type"><option>Silový A</option><option>Silový B</option><option>Silový C</option><option>Silový D</option><option>Běh</option><option>Plavání</option><option>Terén</option><option>Chůze</option><option>Mobilita</option><option>Jiné</option></select></div>
           <div class="field"><label>Délka (min)</label><input type="number" name="duration" min="0" max="600" required></div>
           <div class="field"><label>Běh / chůze (km)</label><input type="number" name="distanceKm" min="0" max="200" step="0.01" placeholder="např. 3,50"></div>
           <div class="field"><label>Plavání (m)</label><input type="number" name="swimMeters" min="0" max="100000" step="25" placeholder="např. 500"></div>
@@ -513,11 +514,11 @@
     if (!window.SPARTAN_APP_READY) {
       var banner = document.createElement("div");
       banner.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;padding:14px 16px;border-radius:12px;background:#fff3cd;border:1px solid #ffda6a;color:#664d03;font:14px system-ui;box-shadow:0 8px 30px rgba(0,0,0,.16)";
-      banner.innerHTML = "<strong>Aplikace se nenačetla.</strong> Otevři stránku s parametrem <code>?v=32</code>, případně obnov data webu.";
+      banner.innerHTML = "<strong>Aplikace se nenačetla.</strong> Otevři stránku s parametrem <code>?v=33</code>, případně obnov data webu.";
       document.body.appendChild(banner);
     }
   }, 5000);
 </script>
-<script type="module" src="./app-v32.js?v=32"></script>
+<script type="module" src="./app-v33.js?v=33"></script>
 </body>
 </html>
