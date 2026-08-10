@@ -202,12 +202,18 @@
     .last-value{font-size:12px;color:var(--muted);margin-top:9px}
     @media(max-width:820px){.quick-measure-grid{grid-template-columns:1fr}}
 
+  
+    .bp-guide{margin-top:12px;padding:11px 12px;border-radius:11px;background:#f0fff4;border:1px solid #c6f6d5;color:#276749;font-size:12px;line-height:1.5}
+    .bp-guide a{color:#2b6cb0;font-weight:750;text-decoration:none}.bp-guide a:hover{text-decoration:underline}
+    .chart-reference{min-height:0;margin-top:8px;color:#718096;font-size:12px;line-height:1.5}
+    .chart-reference:not(:empty){padding:10px 12px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:10px}
+
   </style>
 </head>
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-mark">S</div><div><strong>Spartan Tracker</strong><small>Liberec 2027 · v3.3</small></div></div>
+    <div class="brand"><div class="brand-mark">S</div><div><strong>Spartan Tracker</strong><small>Liberec 2027 · v3.4</small></div></div>
     <nav class="nav" id="desktopNav">
       <button data-page="dashboard" class="active"><span class="icon">⌂</span>Přehled</button>
       <button data-page="plan"><span class="icon">✓</span>Tréninkový plán</button>
@@ -229,8 +235,7 @@
       <div class="top-actions">
         <button class="btn small hide-mobile" id="authTopBtn">☁ Přihlásit</button>
         <button class="btn small hide-mobile" id="printBtn">🖨 Tisk</button>
-        <button class="btn small primary" id="quickLogBtn">＋ Zapsat trénink</button>
-      </div>
+              </div>
     </header>
 
     <main class="main">
@@ -256,7 +261,7 @@
           <div class="card metric"><div class="label">Běh a chůze</div><div class="value" id="runMetric">0 km</div><div class="hint">zapsaná vzdálenost</div></div>
           <div class="card metric"><div class="label">Plavání</div><div class="value" id="swimMetric">0 m</div><div class="hint">zapsaná vzdálenost</div></div>
           <div class="card metric"><div class="label">Hmotnost</div><div class="value" id="weightMetric">—</div><div class="hint" id="weightHint">zatím bez měření</div></div>
-          <div class="card metric"><div class="label">Průměrný spánek</div><div class="value" id="sleepMetric">—</div><div class="hint">poslední záznamy</div></div>
+          <div class="card metric"><div class="label">Průměrný spánek · posledních 7 dní</div><div class="value" id="sleepMetric">—</div><div class="hint" id="sleepHint">Celkový průměr: —</div></div>
         </div>
 
         <div class="section-grid">
@@ -286,7 +291,7 @@
       </section>
 
       <section class="page" id="page-plan">
-        <div class="page-title"><div><h2>Tréninkový plán</h2><p>Startovní blok do Lipno Sprintu 2026 včetně běhu, volitelného plavání, kettlebellů a odporových gum.</p></div><button class="btn" id="expandAllBtn">Rozbalit vše</button></div>
+        <div class="page-title"><div><h2>Tréninkový plán</h2><p>Startovní blok do Lipno Sprintu 2026. Tréninky zapisuj a upravuj pouze zde přes checkbox nebo tlačítko Zapsat.</p></div><button class="btn" id="expandAllBtn">Rozbalit vše</button></div>
         <div class="notice" style="margin-bottom:16px">Pro první týdny drž intenzitu přibližně 3–5 z 10. Plavání je volitelná náhrada lehkého regeneračního pohybu, ne další povinný trénink.</div>
         <div id="planContainer"></div>
         <div class="card" style="margin-top:18px">
@@ -333,6 +338,26 @@
           </div>
 
           <div class="card quick-card">
+            <div class="card-head"><div><h3><span class="quick-icon">♡</span>Krevní tlak</h3><p>Systolický / diastolický v mmHg.</p></div></div>
+            <div class="card-body">
+              <form id="pressureForm">
+                <div class="form-grid">
+                  <div class="field span-2"><label>Datum</label><input type="date" name="date" required></div>
+                  <div class="field"><label>Systolický</label><input type="number" name="systolicBp" min="60" max="260" step="1" placeholder="118" required></div>
+                  <div class="field"><label>Diastolický</label><input type="number" name="diastolicBp" min="35" max="160" step="1" placeholder="75" required></div>
+                </div>
+                <div class="last-value" id="pressureLastValue"></div>
+                <div class="bp-guide">
+                  <strong>Orientační kontrola:</strong> normální tlak je podle AHA méně než <strong>120/80 mmHg</strong>; pod <strong>90/60 mmHg</strong> se tlak běžně označuje jako nízký.
+                  Graf používá praktické zelené pásmo <strong>90–119 / 60–79</strong>. Jednotlivé měření samo o sobě není diagnóza.
+                  <a href="https://www.heart.org/en/health-topics/high-blood-pressure/understanding-blood-pressure-readings" target="_blank" rel="noopener noreferrer">Zdroj AHA</a>
+                </div>
+                <div class="form-actions"><button class="btn primary" type="submit">Uložit tlak</button></div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card quick-card">
             <div class="card-head"><div><h3><span class="quick-icon">♥</span>Denní stav</h3><p>Vyplň jen to, co právě sleduješ.</p></div></div>
             <div class="card-body">
               <form id="dailyStatusForm">
@@ -369,12 +394,12 @@
           <div class="card">
             <div class="card-head"><div><h3>Vývoj ukazatele</h3><p>Vyber metriku pro graf.</p></div>
               <select id="metricSelect" style="width:auto">
-                <option value="weight">Hmotnost</option><option value="waist">Pas</option><option value="restingHr">Klidová TF</option>
+                <option value="weight">Hmotnost</option><option value="waist">Pas</option><option value="bloodPressure">Krevní tlak</option><option value="restingHr">Klidová TF</option>
                 <option value="sleepMinutes">Spánek</option><option value="kmTime">1 km čas</option><option value="hang">Vis</option>
                 <option value="pushups">Kliky</option><option value="energy">Energie</option><option value="pain">Bolest</option>
               </select>
             </div>
-            <div class="card-body"><div class="chart-host" id="metricChart"></div></div>
+            <div class="card-body"><div class="chart-host" id="metricChart"></div><div class="chart-reference" id="metricReferenceNote"></div></div>
           </div>
           <div class="card">
             <div class="card-head"><div><h3>Tréninkové minuty</h3><p>Součet podle týdnů.</p></div></div>
@@ -393,7 +418,7 @@
         <div class="card" style="margin-top:18px">
           <div class="card-head"><div><h3>Historie měření</h3><p>Jeden řádek na den. Nový zápis stejného ukazatele přepíše jeho hodnotu pro dané datum.</p></div></div>
           <div class="card-body table-wrap">
-            <table><thead><tr><th>Datum</th><th>Váha</th><th>Pas</th><th>TF</th><th>Spánek</th><th>1 km</th><th>Vis</th><th>Kliky</th><th>Energie</th><th>Bolest</th><th>Poznámka</th><th></th></tr></thead>
+            <table><thead><tr><th>Datum</th><th>Váha</th><th>Pas</th><th>Tlak</th><th>TF</th><th>Spánek</th><th>1 km</th><th>Vis</th><th>Kliky</th><th>Energie</th><th>Bolest</th><th>Poznámka</th><th></th></tr></thead>
               <tbody id="measurementTable"></tbody></table>
           </div>
         </div>
@@ -514,11 +539,11 @@
     if (!window.SPARTAN_APP_READY) {
       var banner = document.createElement("div");
       banner.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;padding:14px 16px;border-radius:12px;background:#fff3cd;border:1px solid #ffda6a;color:#664d03;font:14px system-ui;box-shadow:0 8px 30px rgba(0,0,0,.16)";
-      banner.innerHTML = "<strong>Aplikace se nenačetla.</strong> Otevři stránku s parametrem <code>?v=33</code>, případně obnov data webu.";
+      banner.innerHTML = "<strong>Aplikace se nenačetla.</strong> Otevři stránku s parametrem <code>?v=34</code>, případně obnov data webu.";
       document.body.appendChild(banner);
     }
   }, 5000);
 </script>
-<script type="module" src="./app-v33.js?v=33"></script>
+<script type="module" src="./app-v34.js?v=34"></script>
 </body>
 </html>
