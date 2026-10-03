@@ -2,6 +2,17 @@
 
 Responzivní osobní deník pohybu s Firebase Auth, Firestore a offline frontou změn. Verze 4 zjednodušuje zadávání podle skutečně používaných údajů a podporuje postupný návrat k pohybu s prostorem pro práci a rodinu.
 
+## Verze 4.2
+
+- Denní rutina je stále rozbalená. Vitamíny D, B a C jsou tři samostatné položky, přidané i u účtů s dříve uloženým výběrem polí. Historie a ostatní doplňky zůstávají zachované.
+- Automatický postup používá 12 malých kroků napříč čtyřmi úrovněmi. Vyhodnocuje pouze uzavřené týdny od začátku přípravy. Další krok vyžaduje dva dostatečně splněné týdny; současný týden sám sobě nezvyšuje cíle.
+- Základní jednotky musí být v různých dnech a mít alespoň 80 % plánované délky. Před zařazením třetí povinné jednotky se vyžaduje zvládnutí volitelného terénu. Záznamy uchovávají režim a fázi tréninku, aby se krátké rodinné a pracovní týdny nezapočítaly jako důvod pro přidání.
+- Po třech zvládnutých týdnech následuje odlehčení. Automatický režim po dvou týdnech bez aktivit vrací začátek; po opakovaném neplnění ubírá. Zaznamenaná bolest, nízká energie nebo málo spánku blokují zvyšování. Chybějící měření se nepovažují za nuly.
+- Závodní příprava u pokročilého kroku a doloženého základu přidá nejvýše jednu kontrolovanou jednotku do kopce během posledních 12 týdnů. Nemění současně její délku.
+- Před aktivním závodem se objem snižuje 14–8 dní předem na přibližně 65 %, poslední týden na 45 %. Poslední dva dny jsou volitelné krátké rozhýbání nebo volno. Po závodě následuje týden regenerace a týden lehkého návratu. Konkrétní minuty se zaokrouhlují dolů.
+- Rodinný režim má přednost. Uživatel může postup pozastavit, snížit krok, přepnout na ruční postup nebo deaktivovat závod. Liberec vyžaduje skutečné datum v Nastavení; datum se neodhaduje.
+- Jde o konzervativní pravidla aplikace pro návrat ke kondici, nikoli záruku závodní připravenosti či automatické zdravotní posouzení. Principy a zdroje jsou uvedené v aplikaci. Testy zahrnují plnění, výpadky, režimy, únavu, fáze závodů a izolované ukládání vitamínů.
+
 ## Verze 4.1
 
 - Hlavní záložky Týden a Měření se soustředí na aktuální plán a rychlé samostatné zadávání. Historie aktivit je rozbalovací součástí Pokroku.
