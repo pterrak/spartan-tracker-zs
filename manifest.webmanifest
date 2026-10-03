@@ -1,11 +1,11 @@
 {
-  "name": "Spartan Tracker v3.5",
+  "name": "Spartan · Prostor pro pohyb",
   "short_name": "Spartan",
-  "description": "Osobní tréninkový a progresový deník pro přípravu na Spartan Race.",
-  "start_url": "./?v=35",
+  "description": "Jednoduchý pohybový deník a pružný plán pro kondici i rodinný život.",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#f4f6f9",
-  "theme_color": "#17233a",
+  "background_color": "#f6f7f3",
+  "theme_color": "#193b32",
   "lang": "cs",
   "icons": [
     {
