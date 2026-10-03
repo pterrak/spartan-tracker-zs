@@ -2,7 +2,17 @@
 
 Responzivní osobní deník pohybu s Firebase Auth, Firestore a offline frontou změn. Verze 4 zjednodušuje zadávání podle skutečně používaných údajů a podporuje postupný návrat k pohybu s prostorem pro práci a rodinu.
 
-## Co je nového
+## Verze 4.1
+
+- Hlavní záložky Týden a Měření se soustředí na aktuální plán a rychlé samostatné zadávání. Historie aktivit je rozbalovací součástí Pokroku.
+- Každé měření má vlastní formulář a uložení; spánek a subjektivní škály používají výběrová pole. Rozepsané hodnoty v ostatních kartách zůstávají zachované při ukládání i přepnutí záložky.
+- Grafy mají dlouhodobý průměr, průměr posledních sedmi kalendářních dnů, klouzavý průměr posledních až pěti měření a výběr období. Prázdné dny se nepočítají jako nuly. Body lze prohlížet dotykem i klávesnicí.
+- Společný graf tlaku nabízí orientační čáry pro domácí měření a vysvětlení se zdroji NHS. Nejde o osobní léčebné cíle.
+- Klidný týden přidává dobrovolnou lehkou aktivitu; postup do náročnější úrovně zůstává ruční po zvládnuté přípravě. Rodinný režim má přednost.
+- U cviků jsou obnovená videa z původní knihovny, včetně vloženého přehrávače a odkazu na YouTube. Původní vyhledávací odkazy jsou označené jako vyhledávání.
+- `views.mjs` obsahuje hlavní obrazovky, `insights.mjs` výpočty a grafy, `exercises.mjs` knihovnu ukázek.
+
+## Základ verze 4
 
 - Čtyři obrazovky: Dnes, Pohyb, Pokrok a Plán a cíle.
 - Dvě krátké jednotky na začátek, volitelný pohyb navíc a ruční postup do dalších úrovní.
@@ -30,7 +40,7 @@ Osobní údaje a exporty nepatří do repozitáře. Starší skripty jsou ponech
 Spusť kořen repozitáře přes HTTP, například `python -m http.server 8000`, a otevři `http://localhost:8000`. Pro přihlášení musí být doména povolená ve Firebase Auth. Bez přihlášení funguje místní deník; na jiném zařízení je potřeba stejný Google účet.
 
 ```bash
-node --test tests/core.test.mjs
+node --test tests/*.test.mjs
 node --check app-v4.mjs
 node --check ui.mjs
 ```

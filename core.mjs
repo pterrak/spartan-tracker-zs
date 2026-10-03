@@ -41,7 +41,7 @@ export function normalize(raw={}){
   if(!raw.profile?.restartDate)s.profile.restartDate=today();
   if(Number(raw.version||0)<4){s.profile.raceDate='';s.profile.goal='Liberec Super 2027';}
   s.profile.planLevel=Math.max(0,Math.min(3,Math.floor(Number(s.profile.planLevel)||0)));
-  if(!['normal','busy','family'].includes(s.profile.weekMode))s.profile.weekMode='normal';
+  if(!['normal','calm','busy','family'].includes(s.profile.weekMode))s.profile.weekMode='normal';
   return s;
 }
 export function workouts(s){return [...Object.entries(s.completions).map(([id,w])=>({...w,id,planned:true})),...s.customWorkouts.map(w=>({...w,planned:false}))].filter(w=>w.completed!==false&&validDate(w.date));}
@@ -71,7 +71,8 @@ export const LEVELS=[
 export function weekPlan(s,date=today()){
   const start=monday(date),effectiveMode=mode(s,date); const index=s.profile.planLevel;
   const base=effectiveMode==='family'?[{type:'Chůze',title:'Chvíle na vzduchu',duration:15,details:'Krátká klidná procházka, kdy se vejde do dne.'},{type:'Silový A',title:'Deset minut pro tělo',duration:10,details:'Krátké zahřátí, pár lehkých dřepů k židli, kliků o zeď a přítahů gumy. Při únavě jen mobilita.',exercise:'A',optional:true}]:effectiveMode==='busy'?[{type:'Chůze',title:'Krátká procházka',duration:15,details:'Patnáct minut svižné chůze. Můžeš rozdělit na dvě kratší části.'},{type:'Silový A',title:'Krátká síla doma',duration:15,details:'Krátké zahřátí a jeden lehký okruh A.',exercise:'A'}]:LEVELS[index].sessions;
-  return base.map((x,i)=>({...x,id:`v4-${start}-${effectiveMode}-${i}`,week:start,slot:i}));
+  const sessions=effectiveMode==='calm'?[...base,{type:s.profile.swimOptional?'Plavání':'Chůze',title:s.profile.swimOptional?'Lehké plavání pro radost':'Procházka navíc',duration:20,details:s.profile.swimOptional?'Volné tempo s pauzami. Dobrovolný pohyb navíc, když zbývá energie.':'Dvacet minut lehké chůze. Přidej jen tehdy, když se cítíš odpočatý.',optional:true}]:base;
+  return sessions.map((x,i)=>({...x,id:`v4-${start}-${effectiveMode}-${i}`,week:start,slot:i}));
 }
 export function weekStats(s,date=today()){
   const start=monday(date),end=addDays(start,6),rows=workouts(s).filter(w=>w.date>=start&&w.date<=end);
@@ -79,7 +80,7 @@ export function weekStats(s,date=today()){
 }
 export function weeklySeries(s,date=today(),count=8){const current=monday(date),all=workouts(s);return Array.from({length:count},(_,i)=>{const start=addDays(current,-7*(count-i-1));return {date:start,minutes:all.filter(w=>w.date>=start&&w.date<=addDays(start,6)).reduce((n,w)=>n+(Number(w.duration)||0),0)};});}
 export function metricPoints(s,key){const dates=new Map();for(const m of s.measurements){if(validDate(m.date)&&hasValue(m[key])&&Number.isFinite(Number(m[key])))dates.set(m.date,{date:m.date,value:Number(m[key])});}return [...dates.values()].sort((a,b)=>a.date.localeCompare(b.date));}
-export function metricValue(key,value){if(!hasValue(value))return '—';if(key==='sleepMinutes')return `${Math.floor(Number(value)/60)} h ${Math.round(Number(value)%60)} min`;return Number(value).toLocaleString('cs-CZ',{maximumFractionDigits:2})+' '+METRICS[key].unit;}
+export function metricValue(key,value){if(!hasValue(value))return '-';if(key==='sleepMinutes'){const total=Math.round(Number(value));return `${Math.floor(total/60)} h ${total%60} min`;}return Number(value).toLocaleString('cs-CZ',{maximumFractionDigits:2})+' '+METRICS[key].unit;}
 export function personalRecordCount(s){return workouts(s).length+s.measurements.length+Object.keys(s.supplements).length;}
 
 // Field-level merge: edits only touch their own record. Unknown legacy fields survive.
